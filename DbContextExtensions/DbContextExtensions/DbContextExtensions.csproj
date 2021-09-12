@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+    <Authors>Philipp Wagner</Authors>
+    <Product />
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Version>0.0.1</Version>
+    <Company />
+    <Description>A small library to simplify building Entity Framework Core applications.
+</Description>
+    <Copyright>Copyright © 2021 Philipp Wagner</Copyright>
+    <PackageProjectUrl>https://github.com/bytefish/DbContextExtensions</PackageProjectUrl>
+    <RepositoryUrl>git://github.com/bytefish/DbContextExtensions</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>DbContextScope</PackageTags>
+    <SignAssembly>true</SignAssembly>
+    <DelaySign>false</DelaySign>
+    <AssemblyOriginatorKeyFile>DbContextExtensions.snk</AssemblyOriginatorKeyFile>
+    <PackageId>DbContextExtensions.Core</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="5.0.9" />
+  </ItemGroup>
+
+</Project>
