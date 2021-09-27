@@ -17,7 +17,7 @@ namespace DbContextExtensions.Scope
         /// <typeparam name="TDbContext">The <see cref="DbContext"/> type</typeparam>
         /// <param name="cancellationToken">Cancellation Token</param>
         /// <returns>The currently scoped <see cref="DbContext"/></returns>
-        Task<TDbContext> GetDbContextAsync<TDbContext>(CancellationToken cancellationToken = default)
+        TDbContext GetDbContext<TDbContext>()
             where TDbContext : DbContext;
     }
 }

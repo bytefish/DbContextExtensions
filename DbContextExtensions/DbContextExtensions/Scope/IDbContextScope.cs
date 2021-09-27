@@ -11,28 +11,19 @@ namespace DbContextExtensions.Scope
     /// Scopes the usage of a <see cref="DbContext"/>.
     /// </summary>
     /// <typeparam name="TDbContext">The <see cref="DbContext"/> type</typeparam>
-    public interface IDbContextScope<TDbContext> : IDisposable
+    public interface IDbContextScope<TDbContext> : IDisposable, IAsyncDisposable
         where TDbContext : DbContext
     {
         /// <summary>
-        /// Commits the DbContextScope.
+        /// Completes the current DbContextScope.
         /// </summary>
-        /// <param name="cancellationToken">Cancellation Token</param>
-        /// <returns>Awaitable Task</returns>
-        Task CommitAsync(CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Rollback the Scoped Transaction.
-        /// </summary>
-        /// <param name="cancellationToken">Cancellation Token</param>
-        /// <returns>Awaitable Task</returns>
-        Task RollbackAsync(CancellationToken cancellationToken = default);
+        void Complete();
 
         /// <summary>
         /// Gets the underlying <see cref="DbContext"/>.
         /// </summary>
         /// <param name="cancellationToken">Cancellation Token</param>
         /// <returns>Currently scoped <see cref="DbContext"/></returns>
-        Task<TDbContext> GetDbContextAsync(CancellationToken cancellationToken = default);
+        TDbContext GetDbContext();
     }
 }

@@ -9,12 +9,12 @@ namespace DbContextExtensions.Scope
 {
     public class DbContextAccessor : IDbContextAccessor
     {
-        public Task<TDbContext> GetDbContextAsync<TDbContext>(CancellationToken cancellationToken = default)
+        public TDbContext GetDbContext<TDbContext>()
             where TDbContext : DbContext
         {
             var dbContextScope = GetCurrentScope<TDbContext>();
 
-            return dbContextScope.GetDbContextAsync(cancellationToken);
+            return dbContextScope.GetDbContext();
         }
 
         private DbContextScope<TDbContext> GetCurrentScope<TDbContext>()

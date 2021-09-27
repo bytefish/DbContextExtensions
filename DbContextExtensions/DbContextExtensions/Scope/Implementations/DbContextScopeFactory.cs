@@ -15,9 +15,9 @@ namespace DbContextExtensions.Scope
             this.dbContextFactory = dbContextFactory;
         }
 
-        public IDbContextScope<TDbContext> Create(bool isReadOnly = false, IsolationLevel isolationLevel = IsolationLevel.ReadCommitted)
+        public IDbContextScope<TDbContext> Create(bool join = true, bool isReadOnly = false, bool allowSaving = false, IsolationLevel isolationLevel = IsolationLevel.ReadCommitted)
         {
-            return new DbContextScope<TDbContext>(dbContextFactory, isReadOnly, isolationLevel);
+            return new DbContextScope<TDbContext>(dbContextFactory, join, isReadOnly, allowSaving, isolationLevel);
         }
     }
 }

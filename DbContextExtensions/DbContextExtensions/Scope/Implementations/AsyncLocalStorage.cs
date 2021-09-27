@@ -40,22 +40,21 @@ namespace DbContextExtensions.Scope
         {
             var contextKey = CurrentContextKey.Value;
 
+            // No one has set the AsyncLocal<...> yet, so create a new ContextKey 
+            // for lookups in the ConditionalWeakTable and set the CurrentContextKey:
             if (contextKey == null)
             {
                 contextKey = new ContextKey();
 
                 CurrentContextKey.Value = contextKey;
-                DbContextScope.Add(contextKey, ImmutableStack.Create<DbContextScope<TDbContext>>());
             }
 
-            bool keyFound = DbContextScope.TryGetValue(contextKey, out var dbContextScopes);
-
-            if (!keyFound)
+            // Try to get the current DbContextScope atomically, if there is 
+            // no entry yet create a new (empty) ImmutableStack:
+            return DbContextScope.GetValue(contextKey, createValueCallback =>
             {
-                throw new Exception("Stack not found for this DbContextScope");
-            }
-
-            return dbContextScopes;
+                return ImmutableStack.Create<DbContextScope<TDbContext>>();
+            });
         }
     }
 }

@@ -5,6 +5,8 @@ VisualStudioVersion = 16.0.31129.286
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DbContextExtensions", "DbContextExtensions\DbContextExtensions.csproj", "{62C0E435-0CAF-4543-AADA-B43AC90E41CD}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DbContextExtensions.Test", "DbContextExtensions.Test\DbContextExtensions.Test.csproj", "{EB9E08C2-71A4-4D4D-BBB8-3783C6F0885D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{62C0E435-0CAF-4543-AADA-B43AC90E41CD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{62C0E435-0CAF-4543-AADA-B43AC90E41CD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{62C0E435-0CAF-4543-AADA-B43AC90E41CD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EB9E08C2-71A4-4D4D-BBB8-3783C6F0885D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB9E08C2-71A4-4D4D-BBB8-3783C6F0885D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EB9E08C2-71A4-4D4D-BBB8-3783C6F0885D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EB9E08C2-71A4-4D4D-BBB8-3783C6F0885D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

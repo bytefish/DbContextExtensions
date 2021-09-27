@@ -15,9 +15,11 @@ namespace DbContextExtensions.Scope
         /// <summary>
         /// Creates a new <see cref="IDbContextScope{TDbContext}"/> with the given Isolation Level.
         /// </summary>
+        /// <param name="join"></param>
         /// <param name="isReadOnly">A read-only <see cref="IDbContextScope{TDbContext}"/> prevents writes in a Scope</param>
+        /// <param name="allowSaving">Allows Directs save on the scoped <see cref="DbContext"/></param>
         /// <param name="isolationLevel">The Isolation Level of the underlying Transaction in a Scope</param>
         /// <returns>A scoped <see cref="DbContext"/></returns>
-        IDbContextScope<TDbContext> Create(bool isReadOnly = false, IsolationLevel isolationLevel = IsolationLevel.ReadCommitted);
+        IDbContextScope<TDbContext> Create(bool join = true, bool isReadOnly = false, bool allowSaving = false, IsolationLevel isolationLevel = IsolationLevel.ReadCommitted);
     }
 }
