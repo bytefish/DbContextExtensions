@@ -25,7 +25,7 @@ namespace DbContextExtensions.Scope
 
             if (contextKey == null)
             {
-                throw new Exception("No Key found for Scope.");
+                throw new InvalidOperationException("No Key found for Scope.");
             }
 
             if (DbContextScope.TryGetValue(contextKey, out _))

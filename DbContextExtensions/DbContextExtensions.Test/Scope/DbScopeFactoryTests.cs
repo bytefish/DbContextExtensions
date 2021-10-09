@@ -1,5 +1,4 @@
 ﻿using DbContextExtensions.Context;
-using DbContextExtensions.Exceptions;
 using DbContextExtensions.Mappings;
 using DbContextExtensions.Scope;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +7,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace DbContextExtensions.Test.Scope
@@ -97,8 +95,7 @@ namespace DbContextExtensions.Test.Scope
                     await dbContext.Set<Person>()
                         .AddAsync(new Person());
 
-                    // Try to directly save the data. This should throw:
-                    await dbContext.SaveChangesAsync();
+                    await dbContext.SaveChangesAsync();    
                 }
             }
             catch (Exception e)
@@ -108,13 +105,12 @@ namespace DbContextExtensions.Test.Scope
 
             Assert.IsNotNull(thrown);
             Assert.AreEqual(typeof(InvalidOperationException), thrown.GetType());
-            Assert.AreEqual("Don't call SaveChanges directly on a context owned by a DbContextScope. Use DbContextScope.Commit instead or enable AllowSaving on creation.", thrown.Message);
+            Assert.AreEqual("Don't call SaveChanges directly on a context owned by a DbContextScope. Use DbContextScope#Complete instead or enable AllowSaving on creation. See the inner Exception for the original Stacktrace.", thrown.Message);
         }
 
         [Test]
         public async Task DoNotGuardAgainstDirectSavesWhenAllowSavingIsAllowedTest()
         {
-
             var dbContextScopeFactory = GetService<IDbContextScopeFactory<ApplicationDbContext>>();
 
             Exception thrown = null;
@@ -131,6 +127,8 @@ namespace DbContextExtensions.Test.Scope
 
                     // Try to directly save the data. This should throw:
                     await dbContext.SaveChangesAsync();
+
+                    dbContextScope.Complete();
                 }
             }
             catch (Exception e)
@@ -179,6 +177,59 @@ namespace DbContextExtensions.Test.Scope
         }
 
         [Test]
+        public async Task FailWhenNestedScopeFailedAndDbContextScopeAbortedCaughtTest()
+        {
+            var dbContextScopeFactory = GetService<IDbContextScopeFactory<ApplicationDbContext>>();
+
+            bool nestedAbortedExceptionHasBeenCaught = false;
+            bool outermostAbortedExceptionHasBeenCaught = false;
+
+            try
+            {
+                using (var dbContextScope0 = dbContextScopeFactory.Create())
+                {
+                    try
+                    {
+                        using (var dbContextScope1 = dbContextScopeFactory.Create())
+                        {
+                            var dbContext = dbContextScope1.GetDbContext();
+
+                            // Add some fake data:
+                            await dbContext.Set<Person>()
+                                .AddAsync(new Person() { FirstName = "Philipp", LastName = "Wagner", BirthDate = new DateTime(2013, 1, 1) });
+                        }
+                    }
+                    catch(Exception)
+                    {
+                        nestedAbortedExceptionHasBeenCaught = true;
+                    }
+
+                    dbContextScope0.Complete();
+                }
+            }
+            catch (Exception)
+            {
+                outermostAbortedExceptionHasBeenCaught = true;
+            }
+
+            Assert.AreEqual(true, nestedAbortedExceptionHasBeenCaught);
+            Assert.AreEqual(true, outermostAbortedExceptionHasBeenCaught);
+
+            // Get and Assert the Results:
+            using (var dbContextScope0 = dbContextScopeFactory.Create(isReadOnly: true))
+            {
+                // Get the underlying DbContext:
+                var dbContext = dbContextScope0.GetDbContext();
+
+                // Get Results:
+                var results = await dbContext.Set<Person>().ToListAsync();
+
+                Assert.AreEqual(0, results.Count);
+            }
+        }
+
+
+        [Test]
         public async Task RollbackChangesFromNestedDbContextScopeTest()
         {
             var dbContextScopeFactory = GetService<IDbContextScopeFactory<ApplicationDbContext>>();
@@ -207,7 +258,7 @@ namespace DbContextExtensions.Test.Scope
             }
 
             Assert.IsNotNull(thrown);
-            Assert.AreEqual(typeof(DbContextScopeAbortedException), thrown.GetType());
+            Assert.AreEqual(typeof(InvalidOperationException), thrown.GetType());
 
             // Get and Assert the Results:
             using (var dbContextScope0 = dbContextScopeFactory.Create(isReadOnly: true))
