@@ -95,7 +95,7 @@ namespace DbContextExtensions.Test.Scope
                     await dbContext.Set<Person>()
                         .AddAsync(new Person());
 
-                    await dbContext.SaveChangesAsync();    
+                    await dbContext.SaveChangesAsync();
                 }
             }
             catch (Exception e)
@@ -105,7 +105,7 @@ namespace DbContextExtensions.Test.Scope
 
             Assert.IsNotNull(thrown);
             Assert.AreEqual(typeof(InvalidOperationException), thrown.GetType());
-            Assert.AreEqual("Don't call SaveChanges directly on a context owned by a DbContextScope. Use DbContextScope#Complete instead or enable AllowSaving on creation. See the inner Exception for the original Stacktrace.", thrown.Message);
+            Assert.AreEqual("A DirectSave to one of the scoped DbContexts failed. See Inner Exception for more details.", thrown.Message);
         }
 
         [Test]
@@ -122,7 +122,8 @@ namespace DbContextExtensions.Test.Scope
                     var dbContext = dbContextScope.GetDbContext();
 
                     // Add some fake data:
-                    await dbContext.Set<Person>()
+                    await dbContext
+                        .Set<Person>()
                         .AddAsync(new Person());
 
                     // Try to directly save the data. This should throw:
@@ -182,38 +183,31 @@ namespace DbContextExtensions.Test.Scope
             var dbContextScopeFactory = GetService<IDbContextScopeFactory<ApplicationDbContext>>();
 
             bool nestedAbortedExceptionHasBeenCaught = false;
-            bool outermostAbortedExceptionHasBeenCaught = false;
 
-            try
+            using (var dbContextScope0 = dbContextScopeFactory.Create())
             {
-                using (var dbContextScope0 = dbContextScopeFactory.Create())
+                try
                 {
-                    try
+                    using (var dbContextScope1 = dbContextScopeFactory.Create())
                     {
-                        using (var dbContextScope1 = dbContextScopeFactory.Create())
-                        {
-                            var dbContext = dbContextScope1.GetDbContext();
+                        var dbContext = dbContextScope1.GetDbContext();
 
-                            // Add some fake data:
-                            await dbContext.Set<Person>()
-                                .AddAsync(new Person() { FirstName = "Philipp", LastName = "Wagner", BirthDate = new DateTime(2013, 1, 1) });
-                        }
-                    }
-                    catch(Exception)
-                    {
-                        nestedAbortedExceptionHasBeenCaught = true;
-                    }
+                        // Add some fake data:
+                        await dbContext.Set<Person>()
+                            .AddAsync(new Person() { FirstName = "Philipp", LastName = "Wagner", BirthDate = new DateTime(2013, 1, 1) });
 
-                    dbContextScope0.Complete();
+                        throw new Exception("Test");
+                    }
                 }
-            }
-            catch (Exception)
-            {
-                outermostAbortedExceptionHasBeenCaught = true;
+                catch (Exception)
+                {
+                    nestedAbortedExceptionHasBeenCaught = true;
+                }
+
+                dbContextScope0.Complete();
             }
 
             Assert.AreEqual(true, nestedAbortedExceptionHasBeenCaught);
-            Assert.AreEqual(true, outermostAbortedExceptionHasBeenCaught);
 
             // Get and Assert the Results:
             using (var dbContextScope0 = dbContextScopeFactory.Create(isReadOnly: true))
@@ -234,31 +228,19 @@ namespace DbContextExtensions.Test.Scope
         {
             var dbContextScopeFactory = GetService<IDbContextScopeFactory<ApplicationDbContext>>();
 
-            Exception thrown = null;
-
-            try
+            using (var dbContextScope0 = dbContextScopeFactory.Create())
             {
-                using (var dbContextScope0 = dbContextScopeFactory.Create())
+                using (var dbContextScope1 = dbContextScopeFactory.Create())
                 {
-                    using (var dbContextScope1 = dbContextScopeFactory.Create())
-                    {
-                        var dbContext = dbContextScope1.GetDbContext();
+                    var dbContext = dbContextScope1.GetDbContext();
 
-                        // Add some fake data:
-                        await dbContext.Set<Person>()
-                            .AddAsync(new Person() { FirstName = "Philipp", LastName = "Wagner", BirthDate = new DateTime(2013, 1, 1) });
-                    }
-
-                    dbContextScope0.Complete();
+                    // Add some fake data:
+                    await dbContext.Set<Person>()
+                        .AddAsync(new Person() { FirstName = "Philipp", LastName = "Wagner", BirthDate = new DateTime(2013, 1, 1) });
                 }
-            } 
-            catch(Exception e)
-            {
-                thrown = e;
-            }
 
-            Assert.IsNotNull(thrown);
-            Assert.AreEqual(typeof(InvalidOperationException), thrown.GetType());
+                dbContextScope0.Complete();
+            }
 
             // Get and Assert the Results:
             using (var dbContextScope0 = dbContextScopeFactory.Create(isReadOnly: true))
@@ -296,8 +278,8 @@ namespace DbContextExtensions.Test.Scope
                         throw new Exception();
                     }
                 }
-            } 
-            catch(Exception e)
+            }
+            catch (Exception e)
             {
                 thrown = e;
             }
@@ -362,8 +344,8 @@ namespace DbContextExtensions.Test.Scope
             // Configure the DbContextFactory, which instantiates the DbContext:
             services.AddDbContextFactory<ApplicationDbContext>((services, options) =>
             {
-                // Access the Unit Tests Configuration, which is configured by the Container:
-                var configuration = services.GetRequiredService<IConfiguration>();
+        // Access the Unit Tests Configuration, which is configured by the Container:
+        var configuration = services.GetRequiredService<IConfiguration>();
 
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"));
             });

@@ -33,7 +33,7 @@ namespace DbContextExtensions.Scope
 
         public bool DirectSaveFailed { get; protected set; }
 
-        public InvalidOperationException DirectSaveException { get; protected set; }
+        public InvalidOperationException? DirectSaveException { get; protected set; }
 
 
         public DbContextScope(ILogger<DbContextScope<TDbContext>> logger, IDbContextFactory<TDbContext> dbContextFactory, bool isReadOnly = false, bool allowSaving = false, IsolationLevel isolationLevel = IsolationLevel.ReadCommitted)
@@ -59,6 +59,8 @@ namespace DbContextExtensions.Scope
                 Completed = false;
                 Disposed = false;
                 Failed = false;
+                DirectSaveFailed = false;
+                DirectSaveException = null;
             }
             else
             {
@@ -69,6 +71,8 @@ namespace DbContextExtensions.Scope
                 Completed = false;
                 Disposed = false;
                 Failed = false;
+                DirectSaveFailed = false;
+                DirectSaveException = null;
             }
 
             currentStack = currentStack.Push(this);
@@ -235,6 +239,8 @@ namespace DbContextExtensions.Scope
                     // The Direct Save failed, we need to throw the original exception here:
                     if (DirectSaveFailed)
                     {
+                        logger.LogDebug(DirectSaveException, "Don't call SaveChanges directly on a context owned by a DbContextScope. Use DbContextScope#Complete instead or enable AllowSaving on creation. See the inner Exception for the original Stacktrace.");
+
                         if (Parent != null)
                         {
                             // Make sure the parent knows, we had been doing bad, bad stuff when having called SaveChanges inside the scope:
@@ -250,7 +256,12 @@ namespace DbContextExtensions.Scope
                             .GetAwaiter()
                             .GetResult();
 
-                        throw new InvalidOperationException("Don't call SaveChanges directly on a context owned by a DbContextScope. Use DbContextScope#Complete instead or enable AllowSaving on creation. See the inner Exception for the original Stacktrace.", DirectSaveException);
+                        if (Parent == null && DirectSaveException != null)
+                        {
+                            throw new InvalidOperationException("A DirectSave to one of the scoped DbContexts failed. See Inner Exception for more details.", DirectSaveException);
+                        }
+
+                        return;
                     }
 
                     // Someone might have written a try/catch around a nested scope, which means Exceptions haven't disposed the other scopes 
@@ -258,9 +269,15 @@ namespace DbContextExtensions.Scope
                     // as failed, when they fail:
                     if (Failed)
                     {
-                        logger.LogDebug("Another Scope has already failed, and there's no way to recover from it.");
+                        logger.LogDebug("A nested scope has failed. This indicates a programming problem. Most likely a read/write scope has been disposed without being completed. ");
 
-                        throw new InvalidOperationException("A nested scope has failed. This indicates a programming problem. Most likely a read/write scope has been disposed without being completed. ");
+                        // Rollback current DbContext transaction, if any:
+                        RollbackAsync()
+                            .ConfigureAwait(false)
+                            .GetAwaiter()
+                            .GetResult();
+
+                        return;
                     }
 
                     // If we are presented with a nested DbContextScope, which hasn't been completed at point of being disposed, we
@@ -270,13 +287,15 @@ namespace DbContextExtensions.Scope
                     {
                         Parent.Failed = true;
 
+                        logger.LogDebug("A Read/Write DbContextScope has been disposed without calling Complete. The DbContextScope will be aborted and rolled back.");
+
                         // Rollback current DbContext transaction:
                         RollbackAsync()
                             .ConfigureAwait(false)
                             .GetAwaiter()
                             .GetResult();
 
-                        throw new InvalidOperationException("A Read/Write DbContextScope has been disposed without calling Complete. The DbContextScope will be aborted and rolled back.");
+                        return;
                     }
 
                     // If we have started the Transaction, we should commit it, too. If the Scope 
@@ -299,13 +318,15 @@ namespace DbContextExtensions.Scope
                         // this is a programming error and open transactions need to be rolled back.
                         if (!IsReadOnly && !Completed)
                         {
+                            logger.LogDebug("A Read/Write DbContextScope has been disposed without calling Complete. The DbContextScope will be aborted and rolled back.");
+
                             // Rollback current DbContext transaction:
                             RollbackAsync()
                                 .ConfigureAwait(false)
                                 .GetAwaiter()
                                 .GetResult();
 
-                            throw new InvalidOperationException("A Read/Write DbContextScope has been disposed without calling Complete. The DbContextScope will be aborted and rolled back.");
+                            return;
                         }
 
                         if (Context != null)
@@ -328,8 +349,6 @@ namespace DbContextExtensions.Scope
                                     .GetAwaiter()
                                     .GetResult();
                             }
-
-
                         }
                     }
                 }
@@ -420,7 +439,12 @@ namespace DbContextExtensions.Scope
                 // Rollback current DbContext transaction, if any:
                 await RollbackAsync().ConfigureAwait(false);
 
-                throw new InvalidOperationException("Don't call SaveChanges directly on a context owned by a DbContextScope. Use DbContextScope#Complete instead or enable AllowSaving on creation. See the inner Exception for the original Stacktrace.", DirectSaveException);
+                if(Parent == null && DirectSaveException != null)
+                {
+                    throw new InvalidOperationException("A DirectSave to one of the scoped DbContexts failed. See Inner Exception for more details.", DirectSaveException);
+                }
+
+                return;
             }
 
             // Someone might have written a try/catch around a nested scope, which means Exceptions haven't disposed the other scopes 
@@ -430,7 +454,10 @@ namespace DbContextExtensions.Scope
             {
                 logger.LogDebug("Another Scope has already failed, and there's no way to recover from it.");
 
-                throw new InvalidOperationException("A nested scope has failed. This indicates a programming problem. Most likely a read/write scope has been disposed without being completed. ");
+                // Rollback current DbContext transaction:
+                await RollbackAsync().ConfigureAwait(false);
+
+                return;
             }
 
             // If we are presented with a nested DbContextScope, which hasn't been completed at point of being disposed, we
@@ -438,12 +465,14 @@ namespace DbContextExtensions.Scope
             // all other Scopes are being rolled back too...
             if (Parent != null && !IsReadOnly && !Completed)
             {
+                logger.LogDebug("Read/Write DbContext has not been completed. Rolling back the Transaction.");
+
                 Parent.Failed = true;
 
                 // Rollback current DbContext transaction:
                 await RollbackAsync().ConfigureAwait(false);
 
-                throw new InvalidOperationException("A Read/Write DbContextScope has been disposed without calling Complete. The DbContextScope will be aborted and rolled back.");
+                return;
             }
 
             // If we have started the Transaction, we should commit it, too. If the Scope 
@@ -461,10 +490,12 @@ namespace DbContextExtensions.Scope
                 // this is a programming error and open transactions need to be rolled back.
                 if (!IsReadOnly && !Completed)
                 {
+                    logger.LogDebug("A Read/Write DbContextScope has been disposed without calling Complete. The DbContextScope will be aborted and rolled back.");
+
                     // Rollback current DbContext transaction:
                     await RollbackAsync().ConfigureAwait(false);
 
-                    throw new InvalidOperationException("A Read/Write DbContextScope has been disposed without calling Complete. The DbContextScope will be aborted and rolled back.");
+                    return;
                 }
 
                 if (Context != null)

@@ -12,8 +12,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Transactions;
 
 namespace DbContextExtensions.Test.Example.App
 {
@@ -34,9 +36,12 @@ namespace DbContextExtensions.Test.Example.App
         [Test]
         public async Task ExecuteService()
         {
+
+
             var heroService = GetService<IHeroService>();
             var loggerFactory = GetService<ILoggerFactory>();
 
+            // Add Magneto:
             {
                 var hero = new Hero
                 {
@@ -51,6 +56,7 @@ namespace DbContextExtensions.Test.Example.App
                 await heroService.AddHero(hero);
             }
 
+            // Get all Heroes:
             var heroes = await heroService.GetHeroes();
 
             foreach (var hero in heroes)
