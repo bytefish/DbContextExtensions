@@ -222,7 +222,6 @@ namespace DbContextExtensions.Test.Scope
             }
         }
 
-
         [Test]
         public async Task RollbackChangesFromNestedDbContextScopeTest()
         {
@@ -344,8 +343,8 @@ namespace DbContextExtensions.Test.Scope
             // Configure the DbContextFactory, which instantiates the DbContext:
             services.AddDbContextFactory<ApplicationDbContext>((services, options) =>
             {
-        // Access the Unit Tests Configuration, which is configured by the Container:
-        var configuration = services.GetRequiredService<IConfiguration>();
+                // Access the Unit Tests Configuration, which is configured by the Container:
+                var configuration = services.GetRequiredService<IConfiguration>();
 
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"));
             });
